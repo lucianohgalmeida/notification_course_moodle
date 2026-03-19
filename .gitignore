@@ -1,2 +1,3 @@
 .cron.lock
 .claude/
+.DS_Store
