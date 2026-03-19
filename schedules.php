@@ -527,7 +527,7 @@ if ($method === 'GET' && in_array($action, ['create', 'edit'], true)) {
                 </label>
                 <input type="text" id="subject" name="subject" class="form-input" required
                        maxlength="255"
-                       value="<?= $edit_sched ? htmlspecialchars($edit_sched->subject, ENT_QUOTES) : 'Lembrete: Sua aula {nome_curso} CPB!' ?>">
+                       value="<?= $edit_sched ? htmlspecialchars($edit_sched->subject, ENT_QUOTES) : 'Lembrete: Sua aula {nome_curso}!' ?>">
             </div>
 
             <!-- Corpo do e-mail -->
