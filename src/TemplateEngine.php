@@ -52,13 +52,25 @@ class TemplateEngine {
 
         $logo_url = $DB->get_field('notifcourse_config', 'config_value', ['config_key' => 'logo_url']);
 
-        return [
+        $vars = [
             'nome_aluno'         => trim($user->firstname . ' ' . $user->lastname),
             'login_moodle'       => $user->username,
             'nome_curso'         => $course->fullname,
             'link_esqueci_senha' => $CFG->wwwroot . '/login/forgot_password.php',
             'logo_url'           => $logo_url ?: '',
         ];
+
+        // Disponibilizar data_inicio e data_termino em todos os tipos de notificação.
+        // Sempre definir as chaves para evitar que o placeholder {data_inicio}/{data_termino}
+        // apareça literalmente no e-mail quando o curso não possui datas configuradas.
+        $vars['data_inicio'] = (!empty($course->startdate) && (int)$course->startdate > 0)
+            ? self::format_date((int)$course->startdate)
+            : '';
+        $vars['data_termino'] = (!empty($course->enddate) && (int)$course->enddate > 0)
+            ? self::format_date((int)$course->enddate)
+            : '';
+
+        return $vars;
     }
 
     // -------------------------------------------------------------------------

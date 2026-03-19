@@ -553,6 +553,7 @@ if ($edit_sched) {
 ?></textarea>
                 <p class="form-hint">
                     Variáveis disponíveis: <code>{nome_aluno}</code>, <code>{nome_curso}</code>,
+                    <code>{data_inicio}</code>, <code>{data_termino}</code>,
                     <code>{data_aula}</code>, <code>{hora_aula}</code>, <code>{link_aula}</code>,
                     <code>{link_pesquisa}</code>, <code>{login_moodle}</code>, <code>{link_esqueci_senha}</code>, <code>{logo_url}</code>
                     <br><small style="color:hsl(var(--muted-foreground));">O logo configurado em Configurações é inserido automaticamente no topo do e-mail.</small>
@@ -646,6 +647,113 @@ if ($method === 'GET' && ($action === 'link_api' || $action === 'zoom_api')) {
     } else {
         echo json_encode(['link_aula' => '']);
     }
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// GET: Visualizar conteúdo de um agendamento (subject + body)
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && $action === 'view' && $id > 0) {
+    $schedule = ScheduleManager::get($id);
+    if (!$schedule) {
+        header('Location: schedules.php?msg_error=' . urlencode('Agendamento não encontrado.'));
+        exit;
+    }
+    $course = $DB->get_record('course', ['id' => $schedule->courseid]);
+    $sched_type = $schedule->notification_type ?? 'lesson';
+
+    require_once(__DIR__ . '/includes/header.php');
+    ?>
+
+    <div class="page-header">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+            <a href="schedules.php" class="btn btn-ghost btn-sm" style="padding:.3rem .5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="page-title">Visualizar Agendamento #<?= (int)$id ?></h1>
+                <p class="page-subtitle">
+                    <?= $course ? htmlspecialchars($course->fullname, ENT_QUOTES) : '(curso não encontrado)' ?>
+                    &mdash; <?= sched_type_badge($sched_type) ?>
+                    &mdash; <?= date('d/m/Y H:i', (int)$schedule->lesson_date) ?>
+                    &mdash; <?= sched_status_badge($schedule->status) ?>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="padding:2rem;">
+        <!-- Assunto -->
+        <div style="margin-bottom:1.5rem;">
+            <label style="display:block;font-weight:600;font-size:.875rem;color:hsl(var(--muted-foreground));margin-bottom:.35rem;">
+                Assunto do E-mail
+            </label>
+            <div style="padding:.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);font-size:.95rem;">
+                <?= htmlspecialchars($schedule->subject ?? '', ENT_QUOTES) ?>
+            </div>
+        </div>
+
+        <!-- Corpo (texto original com placeholders) -->
+        <div style="margin-bottom:1.5rem;">
+            <label style="display:block;font-weight:600;font-size:.875rem;color:hsl(var(--muted-foreground));margin-bottom:.35rem;">
+                Corpo do E-mail (template)
+            </label>
+            <div style="padding:1rem;background:hsl(var(--muted));border-radius:var(--radius);font-size:.9rem;white-space:pre-wrap;line-height:1.6;max-height:400px;overflow-y:auto;"><?= htmlspecialchars($schedule->body ?? '', ENT_QUOTES) ?></div>
+        </div>
+
+        <!-- Informações adicionais -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+            <div>
+                <label style="display:block;font-weight:600;font-size:.875rem;color:hsl(var(--muted-foreground));margin-bottom:.25rem;">
+                    Link do Curso
+                </label>
+                <div style="font-size:.9rem;">
+                    <?php if (!empty($schedule->link_aula)): ?>
+                        <a href="<?= htmlspecialchars($schedule->link_aula, ENT_QUOTES) ?>"
+                           target="_blank" rel="noopener noreferrer">
+                            <?= htmlspecialchars($schedule->link_aula, ENT_QUOTES) ?>
+                        </a>
+                    <?php else: ?>
+                        <span style="color:hsl(var(--muted-foreground));">—</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php if ($sched_type === 'end' && !empty($schedule->survey_url)): ?>
+            <div>
+                <label style="display:block;font-weight:600;font-size:.875rem;color:hsl(var(--muted-foreground));margin-bottom:.25rem;">
+                    Pesquisa de Satisfação
+                </label>
+                <div style="font-size:.9rem;">
+                    <a href="<?= htmlspecialchars($schedule->survey_url, ENT_QUOTES) ?>"
+                       target="_blank" rel="noopener noreferrer">
+                        <?= htmlspecialchars($schedule->survey_url, ENT_QUOTES) ?>
+                    </a>
+                </div>
+            </div>
+            <?php endif; ?>
+            <div>
+                <label style="display:block;font-weight:600;font-size:.875rem;color:hsl(var(--muted-foreground));margin-bottom:.25rem;">
+                    Envio Previsto
+                </label>
+                <div style="font-size:.9rem;">
+                    <?= date('d/m/Y H:i', (int)$schedule->send_at) ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ações -->
+        <div style="display:flex;gap:.75rem;justify-content:flex-end;border-top:1px solid hsl(var(--border));padding-top:1.25rem;">
+            <a href="schedules.php?action=log&id=<?= (int)$id ?>" class="btn btn-outline btn-sm">Ver Log</a>
+            <a href="schedules.php" class="btn btn-primary btn-sm">Voltar</a>
+        </div>
+    </div>
+
+    <?php
+    require_once(__DIR__ . '/includes/footer.php');
     exit;
 }
 
@@ -889,10 +997,13 @@ require_once(__DIR__ . '/includes/header.php');
                 <td><?= sched_status_badge($sched->status) ?></td>
                 <td>
                     <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                        <!-- Editar (apenas pending) -->
+                        <!-- Editar (apenas pending) / Ver (demais) -->
                         <?php if ($is_pending): ?>
                         <a href="schedules.php?action=edit&id=<?= (int)$sched->id ?>"
                            class="btn btn-outline btn-sm">Editar</a>
+                        <?php else: ?>
+                        <a href="schedules.php?action=view&id=<?= (int)$sched->id ?>"
+                           class="btn btn-outline btn-sm">Ver</a>
                         <?php endif; ?>
 
                         <!-- Cancelar (apenas pending) -->
